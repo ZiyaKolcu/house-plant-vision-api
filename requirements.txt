@@ -8,3 +8,8 @@ pydantic[email]
 python-jose
 Werkzeug
 redis
+transformers
+torch
+torchvision
+torchaudio
+-f https://download.pytorch.org/whl/cu128
