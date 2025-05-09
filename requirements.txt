@@ -4,3 +4,7 @@ psycopg[binary]
 python-dotenv
 python-multipart
 pydantic-settings
+pydantic[email]
+python-jose
+Werkzeug
+redis
