@@ -1,0 +1,5 @@
+venv/
+uploads/
+houseplant_model/
+__pycache__/
+.env
