@@ -1,9 +1,11 @@
 from fastapi import FastAPI
-from api.routes.auth import router as auth_router
-from api.routes import submissions, plants
+from fastapi.routing import APIRouter
+from api.routes import auth, submissions, plants
 
 app = FastAPI()
+api_router = APIRouter(prefix="/api/v1")
 
-app.include_router(auth_router)
-app.include_router(submissions.router)
-app.include_router(plants.router)
+api_router.include_router(auth.router)
+api_router.include_router(submissions.router)
+api_router.include_router(plants.router)
+app.include_router(api_router)
