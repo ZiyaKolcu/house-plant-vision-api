@@ -21,6 +21,13 @@ class Database:
                 return await cur.fetchone()
 
     @classmethod
+    async def fetch_all(cls, query: str, *args):
+        async with await cls.get_connection() as conn:
+            async with conn.cursor() as cur:
+                await cur.execute(query, args)
+                return await cur.fetchall()
+
+    @classmethod
     async def execute(cls, query: str, *args):
         async with await cls.get_connection() as conn:
             async with conn.cursor() as cur:
