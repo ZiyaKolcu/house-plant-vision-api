@@ -1,6 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Request
 from api.db.database import Database
-from api.schemas.auth import UserCreate, Token
+from api.schemas.auth import UserCreate, UserLogin, Token
 from api.core.security import (
     get_password_hash,
     verify_password,
@@ -9,7 +9,6 @@ from api.core.security import (
 )
 from api.core.blacklist import blacklist_token
 from api.core.config import settings
-from fastapi import Request
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -27,13 +26,13 @@ async def signup(user: UserCreate):
 
 
 @router.post("/token", response_model=Token)
-async def login(form_data: UserCreate):
-    query = "SELECT id, password FROM users WHERE username=%s OR email=%s"
-    row = await Database.fetchrow(query, form_data.username, form_data.email)
-    if not row or not verify_password(form_data.password, row["password"]):
+async def login(user: UserLogin):
+    query = "SELECT id, password FROM users WHERE email = %s"
+    row = await Database.fetchrow(query, user.email)
+    if not row or not verify_password(user.password, row["password"]):
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Incorrect credentials",
+            detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token({"sub": str(row["id"])})
