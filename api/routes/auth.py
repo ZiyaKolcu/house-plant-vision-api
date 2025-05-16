@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Request
 from api.db.database import Database
-from api.schemas.auth import UserCreate, UserLogin, Token
+from api.schemas.auth import UserProfile, UserCreate, UserLogin, Token
 from api.core.security import (
     get_password_hash,
     verify_password,
@@ -44,3 +44,18 @@ async def signout(request: Request, current_user: int = Depends(get_current_user
     token = request.headers.get("authorization").split(" ")[1]
     await blacklist_token(token, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
     return {"msg": "Successfully signed out"}
+
+
+@router.get("/me", response_model=UserProfile)
+async def read_profile(current_user: int = Depends(get_current_user)):
+    query = """
+        SELECT id, username, email, created_at, updated_at
+        FROM users
+        WHERE id = %s
+    """
+    row = await Database.fetchrow(query, current_user)
+    if not row:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
+        )
+    return row
