@@ -1,5 +1,5 @@
 import os
-from fastapi import APIRouter, File, UploadFile, Depends, HTTPException
+from fastapi import APIRouter, File, UploadFile, Depends, HTTPException, status
 from fastapi.responses import FileResponse
 from api.core.security import get_current_user
 from api.services.submission_service import handle_submission
@@ -54,6 +54,39 @@ async def get_submission_image(
 
     return FileResponse(
         path=image_path,
-        media_type="image/jpeg",  
+        media_type="image/jpeg",
         filename=os.path.basename(image_path),
     )
+
+
+@router.delete("/{submission_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_submission(
+    submission_id: int,
+    current_user: int = Depends(get_current_user),
+):
+    fetch_query = """
+        SELECT user_id, image_url
+        FROM photo_submissions
+        WHERE id = %s
+    """
+    row = await Database.fetchrow(fetch_query, submission_id)
+    if not row:
+        raise HTTPException(status_code=404, detail="Submission not found")
+
+    if row["user_id"] != current_user:
+        raise HTTPException(
+            status_code=403, detail="Not authorized to delete this submission"
+        )
+
+    image_path = row["image_url"]
+
+    delete_query = "DELETE FROM photo_submissions WHERE id = %s"
+    await Database.execute(delete_query, submission_id)
+
+    try:
+        if os.path.isfile(image_path):
+            os.remove(image_path)
+    except Exception:
+        pass
+
+    return
