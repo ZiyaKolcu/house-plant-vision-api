@@ -9,20 +9,24 @@ from api.core.security import (
 )
 from api.core.blacklist import blacklist_token
 from api.core.config import settings
+from api.utils.logger import log_usage  
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/signup", response_model=Token)
 async def signup(user: UserCreate):
-    hashed = get_password_hash(user.password)
-    query = (
-        "INSERT INTO users (username, email, password) VALUES (%s, %s, %s) RETURNING id"
-    )
-    row = await Database.fetchrow(query, user.username, user.email, hashed)
-    user_id = row["id"]
-    access_token = create_access_token({"sub": str(user_id)})
-    return {"access_token": access_token, "token_type": "bearer"}
+    try:
+        hashed = get_password_hash(user.password)
+        query = "INSERT INTO users (username, email, password) VALUES (%s, %s, %s) RETURNING id"
+        row = await Database.fetchrow(query, user.username, user.email, hashed)
+        user_id = row["id"]
+        access_token = create_access_token({"sub": str(user_id)})
+        await log_usage(user_id, "signup", "success")
+        return {"access_token": access_token, "token_type": "bearer"}
+    except Exception as e:
+        await log_usage(None, "signup", "failed", str(e))
+        raise HTTPException(status_code=500, detail="Signup failed")
 
 
 @router.post("/token", response_model=Token)
@@ -30,20 +34,27 @@ async def login(user: UserLogin):
     query = "SELECT id, password FROM users WHERE email = %s"
     row = await Database.fetchrow(query, user.email)
     if not row or not verify_password(user.password, row["password"]):
+        await log_usage(None, "login", "failed", "Invalid email or password")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Incorrect email or password",
             headers={"WWW-Authenticate": "Bearer"},
         )
     access_token = create_access_token({"sub": str(row["id"])})
+    await log_usage(row["id"], "login", "success")
     return {"access_token": access_token, "token_type": "bearer"}
 
 
 @router.post("/signout")
 async def signout(request: Request, current_user: int = Depends(get_current_user)):
-    token = request.headers.get("authorization").split(" ")[1]
-    await blacklist_token(token, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
-    return {"msg": "Successfully signed out"}
+    try:
+        token = request.headers.get("authorization").split(" ")[1]
+        await blacklist_token(token, settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60)
+        await log_usage(current_user, "signout", "success")
+        return {"msg": "Successfully signed out"}
+    except Exception as e:
+        await log_usage(current_user, "signout", "failed", str(e))
+        raise HTTPException(status_code=500, detail="Signout failed")
 
 
 @router.get("/me", response_model=UserProfile)
@@ -55,7 +66,9 @@ async def read_profile(current_user: int = Depends(get_current_user)):
     """
     row = await Database.fetchrow(query, current_user)
     if not row:
+        await log_usage(current_user, "read_profile", "failed", "User not found")
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND, detail="User not found"
         )
+    await log_usage(current_user, "read_profile", "success")
     return row
