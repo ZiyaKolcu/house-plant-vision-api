@@ -1,13 +1,15 @@
 from datetime import datetime
 import torch
+from huggingface_hub import hf_hub_download
 from transformers import AutoImageProcessor, AutoModelForImageClassification
 from api.db.database import Database
 from api.utils.image_utils import save_uploaded_file, open_image
 from api.utils.logger import log_usage
 
 # Load model
-model = AutoModelForImageClassification.from_pretrained("houseplant_model")
-processor = AutoImageProcessor.from_pretrained("houseplant_model")
+model_name = "ZiyaKolcu/House-Plant-Vision-Model"
+model = AutoModelForImageClassification.from_pretrained(model_name)
+processor = AutoImageProcessor.from_pretrained(model_name)
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model.to(device)
 
